@@ -137,29 +137,34 @@ void setup() {
 
 	pinMode(13, OUTPUT);	// DEBUG
 
-	display_heart();
 }
 
 void loop() {
 	static unsigned long last_time = 0;
 	unsigned long now = millis();
 
-	/*
-	 * After 10 seconds from restart start displaying the millis
-	 * value.
-	 */
-	if (now > 10000) {
+	// In first 10 seconds display heart with all the times
+	// flashing.
+	if (now < 10000) {
+		if ((now % 1000) < 500) {
+			display_millis();
+			display_time();
+		} else {
+			display_heart();
+		}
+	} else {
 		display_millis();
-		/* Write millis to vram */
-	}
+		display_time();
+	}	
 
+	// Flasshing the onboard RED LED.
 	if (now > last_time + 500) {
 		last_time += 500;
 		digitalWrite(13, !digitalRead(13));
 	}
 
+	// Do the homework.
 	maintain_clock();
-	display_time();
 
 	delay(50);
 } /* loop() */
