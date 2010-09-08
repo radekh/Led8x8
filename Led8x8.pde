@@ -2,7 +2,7 @@
  * Project: Led8x8
  * Description: Driving Matrix LED by Arduino.
  * Copyright (c) 2010 by Radek Hnilica
- * Version: 0.2
+ * Version: 0.3
  * Date: 2010-09-08
  * License: GPLv3 or at your opinion higher version.
  *
@@ -30,7 +30,11 @@
 int cols[8] = {10, 11, 12, 14,  15, 16, 17, 18};
 int rows[8] = {2, 3, 4, 5,  6, 7, 8, 9};
 
-uint8_t vram[8];
+uint8_t vram[8];		// The videoram buffer.
+
+// Function prototypes.
+void clear_vram(void);
+
 
 void setup() {
 	// Set pins connected to the LED Matric to output mode, and
@@ -42,9 +46,7 @@ void setup() {
 		pinMode(rows[i], OUTPUT);
 	}
 
-	// clear_vram();
-
-	// Paint something to vram
+	// Paint something to vram :).
 	vram[0] = 0b00000000;
 	vram[1] = 0b00110110;
 	vram[2] = 0b01001001;
@@ -93,6 +95,10 @@ void loop() {
 	} ms;
 
 
+	/*
+	 * After 10 seconds from restart start displaying the millis
+	 * value.
+	 */
 	if (now > 10000) {
 		/* Write millis to vram */
 		ms.num = millis();
@@ -109,16 +115,18 @@ void loop() {
 	delay(1);
 }
 
-/**/
+/*
+ * This routine displays one row from the videoram to the LED matrix
+ * display.  Each time it display another row so after 8 interrupts it
+ * display all the videoram.
+ */
 ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
-        static uint8_t display_row = 0;
-	static uint8_t last_row = 7;
-	       uint8_t row = (last_row+1) & 7;
-               uint8_t vbyte = vram[row];
+        static uint8_t display_row = 0; // The row displayed in previous run.
+               uint8_t vbyte;	// The byte from videoram to dispaly.
 
 	digitalWrite(rows[display_row], HIGH); // Switch OFF
-	display_row++; display_row &= 7;
-	vbyte = vram[(int)display_row];
+	display_row++; display_row &= 7;       // Next row.
+	vbyte = vram[display_row];	       // Get the row.
 
 	/* Build new byte on output pins */
 	for (uint8_t i=0; i <= 7; i++) {
@@ -129,45 +137,13 @@ ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
 		}
 		vbyte <<= 1;
 	}
-	digitalWrite(rows[display_row], LOW);
+	digitalWrite(rows[display_row], LOW); // Switch ON
 }
 
 /*
- * This function displays one row from videoram.  It remembers what
- * row was the last shown adn display the next row.  So no arguments
- * to this function.
+ * Clear the contents of videoram.  In another words, blank the
+ * screen.
  */
-#define STEP 100
-void display(void) {
-	static int last_row = 7;
-	static unsigned long last_time;
-	unsigned long now = millis();
-	int row = (last_row+1) & 07;
-	uint8_t vbyte = vram[row];
-
-	/* Check the time */
-	if (now < last_time + STEP) {
-		return;
-	}
-	//last_time += STEP;
-	last_time = now;
-
-	/* Switch off the last row */
-	digitalWrite(rows[last_row], HIGH);
-
-	/* Display new row */
-	for (int i=0; i <= 7; i++) {
-		if ((vbyte & 0x80)) {
-			digitalWrite(cols[i], HIGH);
-		} else {
-			digitalWrite(cols[i], LOW);
-		}
-		vbyte <<= 1;
-	}
-	digitalWrite(rows[row], LOW);
-	last_row = row;
-}
-
 void clear_vram(void) {
 	for (int i=0; i<=7; i++) {
 		vram[i] = 0;
