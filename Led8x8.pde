@@ -151,22 +151,14 @@ void setup() {
 void loop() {
 	static unsigned long last_time = 0;
 	unsigned long now = millis();
-	union {
-		unsigned long num;
-		unsigned char bs[4];
-	} ms;
 
 	/*
 	 * After 10 seconds from restart start displaying the millis
 	 * value.
 	 */
 	if (now > 10000) {
+		display_millis();
 		/* Write millis to vram */
-		ms.num = millis();
-		vram[0] = ms.bs[0];
-		vram[1] = ms.bs[1];
-		vram[2] = ms.bs[2];
-		vram[3] = ms.bs[3];
 	}
 
 	if (now > last_time + 500) {
@@ -179,6 +171,22 @@ void loop() {
 
 	delay(50);
 } /* loop() */
+
+/*
+ * Display time in milliseconds as binary number in upper half of the
+ * display.
+ */
+void display_millis() {
+	union {
+		unsigned long num;
+		unsigned char bs[4];
+	} ms;
+	ms.num = millis();
+	vram[0] = ms.bs[0];
+	vram[1] = ms.bs[1];
+	vram[2] = ms.bs[2];
+	vram[3] = ms.bs[3];
+}/* display_millis() */
 
 
 /*
