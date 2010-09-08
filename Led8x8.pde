@@ -33,9 +33,15 @@ int rows[8] = {2, 3, 4, 5,  6, 7, 8, 9};
 uint8_t vram[8];		// The videoram buffer.
 uint8_t secbuf = 0;		// Seconds buffer incremented by ISR.
 
+// Variables for counting time.  Real time in seconds, minutes, ...
+uint8_t	time_sec = 0;
+uint8_t	time_min = 0;
+uint8_t time_hour = 0;
+
 // Function prototypes.
 void clear_vram(void);
-
+void put_pixel(uint8_t x, uint8_t y, uint8_t color);
+void display_number(uint8_t pos, uint8_t number);
 
 void setup() {
 	// Set pins connected to the LED Matric to output mode, and
@@ -95,6 +101,8 @@ void loop() {
 		unsigned char bs[4];
 	} ms;
 
+	uint8_t dec, one;	// For BCD
+
 
 	/*
 	 * After 10 seconds from restart start displaying the millis
@@ -113,7 +121,65 @@ void loop() {
 		last_time += 500;
 		digitalWrite(13, !digitalRead(13));
 	}
-	delay(1);
+
+	// If there is a one second signal in buffer, process it.
+	noInterrupts();		// Cause concurrency from ISR.
+	if (secbuf) {
+		secbuf--; time_sec++; // Moving second pulse.
+	}
+	interrupts();		// End of critical section.
+
+	// Do the sec, min, hour "calculation"
+	if (time_sec == 60) {
+		time_sec = 0;
+		time_min++;
+		if (time_min == 60) {
+			time_min = 0;
+			time_hour++;
+			if (time_hour == 24) {
+				time_hour = 0;
+			}
+		}
+	}
+
+	/*
+	 * Display real time in BCD.  First try. 
+	 */
+	dec = time_sec / 10;
+	one = time_sec % 10;
+	display_number(0, one);
+	display_number(1, dec);
+
+	display_number(2, 0);	// Blank that position
+
+	dec = time_min / 10;
+	one = time_min % 10;
+	display_number(3, one);
+	display_number(4, dec);
+
+	display_number(5, 0);	// Blank that position
+
+	dec = time_hour / 10;
+	one = time_hour % 10;
+	display_number(6, one);
+	display_number(7, dec);
+
+	//for (uint8_t i=0; i<=3; i++) {
+	//	put_pixel(0, 7-i, one & 1);
+	//	one >>=1;
+	//}
+	delay(50);
+}
+
+/*
+ * Display one number from 0 to 9 (or possibly 15) on the lower part
+ * of the display.  Position counts from right to left.
+ */
+void display_number(uint8_t pos, uint8_t number) {
+	for (uint8_t i=0; i<=3; i++) {
+		put_pixel(pos, 7-i, number &1);
+		number >>=1;
+	}
 }
 
 /*
@@ -170,6 +236,19 @@ ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
 void clear_vram(void) {
 	for (int i=0; i<=7; i++) {
 		vram[i] = 0;
+	}
+}
+
+/*
+ * Put one pixel into videoram buffer.
+ */
+void put_pixel(uint8_t x, uint8_t y, uint8_t color) {
+	// x selects column, y selects row, and color is 0-black, 1-shine.
+
+	if (color) {
+		vram[y] |= 1 << x;
+	} else {
+		vram[y] &= ~(1 << x);
 	}
 }
 
