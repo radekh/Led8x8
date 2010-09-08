@@ -42,7 +42,61 @@ uint8_t time_hour = 0;
 void clear_vram(void);
 void put_pixel(uint8_t x, uint8_t y, uint8_t color);
 void display_number(uint8_t pos, uint8_t number);
+void maintain_clock(void);
 
+
+/*
+ * This routine displays one row from the videoram to the LED matrix
+ * display.  Each time it display another row so after 8 interrupts it
+ * display all the videoram.
+ *
+ * The Timer2 is set to interrupt with exact frequency of 625Hz.  It's
+ * because we want generate 1Hz frequency for the clock.
+ */
+ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
+        static uint8_t display_row = 0; // The row displayed in previous run.
+	static  int8_t cycle = 1;
+               uint8_t vbyte;	// The byte from videoram to dispaly.
+	static uint16_t pulses = 625; // Pulses counter.
+
+	if (!--pulses) {
+		pulses = 625;
+
+		/*
+		 * One second call ie. 1Hz frequency.  We do not
+		 * process the second signal here.  Instead we add the
+		 * second to the temporary buffer secbuf.  The signal
+		 * is processed asynchronically outside of interrupt
+		 * routine.
+		 */
+		secbuf++;	// Add the second to buffer.	
+	}
+	
+        if (--cycle < 0) { cycle=1; } // Cycle counter.
+	if (cycle) return;
+
+	// This code is run only one time in cicle, when the cycle is 0
+	digitalWrite(rows[display_row], HIGH); // Switch OFF
+	display_row++; display_row &= 7;       // Next row.
+	vbyte = vram[display_row];	       // Get the row.
+
+	/* Build new byte on output pins */
+	for (uint8_t i=0; i <= 7; i++) {
+		if ((vbyte & 0x80)) {
+			digitalWrite(cols[i], HIGH);
+		} else {
+			digitalWrite(cols[i], LOW);
+		}
+		vbyte <<= 1;
+	}
+	digitalWrite(rows[display_row], LOW); // Switch ON
+}/* ISR TIMER2_COMPA_vect */
+
+
+
+/*
+ * Setup initial state in the variables and hardware.
+ */
 void setup() {
 	// Set pins connected to the LED Matric to output mode, and
 	// turn off all the leds.
@@ -122,25 +176,7 @@ void loop() {
 		digitalWrite(13, !digitalRead(13));
 	}
 
-	// If there is a one second signal in buffer, process it.
-	noInterrupts();		// Cause concurrency from ISR.
-	if (secbuf) {
-		secbuf--; time_sec++; // Moving second pulse.
-	}
-	interrupts();		// End of critical section.
-
-	// Do the sec, min, hour "calculation"
-	if (time_sec == 60) {
-		time_sec = 0;
-		time_min++;
-		if (time_min == 60) {
-			time_min = 0;
-			time_hour++;
-			if (time_hour == 24) {
-				time_hour = 0;
-			}
-		}
-	}
+	maintain_clock();
 
 	/*
 	 * Display real time in BCD.  First try. 
@@ -169,7 +205,37 @@ void loop() {
 	//	one >>=1;
 	//}
 	delay(50);
+} /* loop() */
+
+
+/*
+ * This function check the secbuf and processes the one second pulse.
+ * It maintains the real H:M:S time in time_hour, time_min, and
+ * time_sec global variables.
+ */
+void maintain_clock(void) {
+	// If there is a one second signal in buffer, process it.
+	noInterrupts();		// Cause concurrency from ISR.
+	if (secbuf) {
+		secbuf--; time_sec++; // Moving second pulse.
+	}
+	interrupts();		// End of critical section.
+
+	// Do the sec, min, hour "calculation"
+	if (time_sec == 60) {
+		time_sec = 0;
+		time_min++;
+		if (time_min == 60) {
+			time_min = 0;
+			time_hour++;
+			if (time_hour == 24) {
+				time_hour = 0;
+			}
+		}
+	}
+	// the HH:MM:SS is in consistent state.
 }
+
 
 /*
  * Display one number from 0 to 9 (or possibly 15) on the lower part
@@ -182,52 +248,6 @@ void display_number(uint8_t pos, uint8_t number) {
 	}
 }
 
-/*
- * This routine displays one row from the videoram to the LED matrix
- * display.  Each time it display another row so after 8 interrupts it
- * display all the videoram.
- *
- * The Timer2 is set to interrupt with exact frequency of 625Hz.  It's
- * because we want generate 1Hz frequency for the clock.
- */
-ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
-        static uint8_t display_row = 0; // The row displayed in previous run.
-	static  int8_t cycle = 1;
-               uint8_t vbyte;	// The byte from videoram to dispaly.
-	static uint16_t pulses = 625; // Pulses counter.
-
-	if (!--pulses) {
-		pulses = 625;
-
-		/*
-		 * One second call ie. 1Hz frequency.  We do not
-		 * process the second signal here.  Instead we add the
-		 * second to the temporary buffer secbuf.  The signal
-		 * is processed asynchronically outside of interrupt
-		 * routine.
-		 */
-		secbuf++;	// Add the second to buffer.	
-	}
-	
-        if (--cycle < 0) { cycle=1; } // Cycle counter.
-	if (cycle) return;
-
-	// This code is run only one time in cicle, when the cycle is 0
-	digitalWrite(rows[display_row], HIGH); // Switch OFF
-	display_row++; display_row &= 7;       // Next row.
-	vbyte = vram[display_row];	       // Get the row.
-
-	/* Build new byte on output pins */
-	for (uint8_t i=0; i <= 7; i++) {
-		if ((vbyte & 0x80)) {
-			digitalWrite(cols[i], HIGH);
-		} else {
-			digitalWrite(cols[i], LOW);
-		}
-		vbyte <<= 1;
-	}
-	digitalWrite(rows[display_row], LOW); // Switch ON
-}
 
 /*
  * Clear the contents of videoram.  In another words, blank the
