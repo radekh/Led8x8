@@ -31,6 +31,7 @@ int cols[8] = {10, 11, 12, 14,  15, 16, 17, 18};
 int rows[8] = {2, 3, 4, 5,  6, 7, 8, 9};
 
 uint8_t vram[8];		// The videoram buffer.
+uint8_t secbuf = 0;		// Seconds buffer incremented by ISR.
 
 // Function prototypes.
 void clear_vram(void);
@@ -74,7 +75,7 @@ void setup() {
 	// Compare Match Output A and B mode = Normal [COM2A1:0 COM2B1:0 = 0000]
         TCCR2A &= 0b00001111;
 	// Set TOP
-	OCR2A = 38;	// TOP value for mode CTC. Should generate 400Hz
+	OCR2A = 24;	// TOP value for mode CTC. Should generate 625Hz
 	// Allow interrupt only from Timer2 Compare A Match.  Overflow
 	// does not work as I expected initially.
 	// OCIE2B=0, OCIE2A=1, TOIE2=0
@@ -119,11 +120,33 @@ void loop() {
  * This routine displays one row from the videoram to the LED matrix
  * display.  Each time it display another row so after 8 interrupts it
  * display all the videoram.
+ *
+ * The Timer2 is set to interrupt with exact frequency of 625Hz.  It's
+ * because we want generate 1Hz frequency for the clock.
  */
 ISR(TIMER2_COMPA_vect, ISR_NOBLOCK) {
         static uint8_t display_row = 0; // The row displayed in previous run.
+	static  int8_t cycle = 1;
                uint8_t vbyte;	// The byte from videoram to dispaly.
+	static uint16_t pulses = 625; // Pulses counter.
 
+	if (!--pulses) {
+		pulses = 625;
+
+		/*
+		 * One second call ie. 1Hz frequency.  We do not
+		 * process the second signal here.  Instead we add the
+		 * second to the temporary buffer secbuf.  The signal
+		 * is processed asynchronically outside of interrupt
+		 * routine.
+		 */
+		secbuf++;	// Add the second to buffer.	
+	}
+	
+        if (--cycle < 0) { cycle=1; } // Cycle counter.
+	if (cycle) return;
+
+	// This code is run only one time in cicle, when the cycle is 0
 	digitalWrite(rows[display_row], HIGH); // Switch OFF
 	display_row++; display_row &= 7;       // Next row.
 	vbyte = vram[display_row];	       // Get the row.
