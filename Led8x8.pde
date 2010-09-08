@@ -1,4 +1,9 @@
 /*
+ * Project: Led8x8
+ * Description: Driving Matrix LED by Arduino.
+ * Version: 0.1
+ * Copyright (c) 2010 by Radek Hnilica
+ * License: GPLv3
  */
 
 // How is the led matrix connected to Arduino.
