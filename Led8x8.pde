@@ -43,6 +43,7 @@ void clear_vram(void);
 void put_pixel(uint8_t x, uint8_t y, uint8_t color);
 void display_number(uint8_t pos, uint8_t number);
 void maintain_clock(void);
+void display_time(void);
 
 
 /*
@@ -155,9 +156,6 @@ void loop() {
 		unsigned char bs[4];
 	} ms;
 
-	uint8_t dec, one;	// For BCD
-
-
 	/*
 	 * After 10 seconds from restart start displaying the millis
 	 * value.
@@ -177,10 +175,19 @@ void loop() {
 	}
 
 	maintain_clock();
+	display_time();
 
-	/*
-	 * Display real time in BCD.  First try. 
-	 */
+	delay(50);
+} /* loop() */
+
+
+/*
+ * Display real time in BCD.  The time is displayed in lower half of
+ * the display.
+ */
+void display_time() {
+	uint8_t dec, one;	// For BCD
+
 	dec = time_sec / 10;
 	one = time_sec % 10;
 	display_number(0, one);
@@ -199,13 +206,8 @@ void loop() {
 	one = time_hour % 10;
 	display_number(6, one);
 	display_number(7, dec);
+}/* display_time() */
 
-	//for (uint8_t i=0; i<=3; i++) {
-	//	put_pixel(0, 7-i, one & 1);
-	//	one >>=1;
-	//}
-	delay(50);
-} /* loop() */
 
 
 /*
