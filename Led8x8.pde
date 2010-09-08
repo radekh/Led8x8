@@ -108,16 +108,6 @@ void setup() {
 		pinMode(rows[i], OUTPUT);
 	}
 
-	// Paint something to vram :).
-	vram[0] = 0b00000000;
-	vram[1] = 0b00110110;
-	vram[2] = 0b01001001;
-	vram[3] = 0b01000001;
-	vram[4] = 0b00100010;
-	vram[5] = 0b00010100;
-	vram[6] = 0b00001000;
-	vram[7] = 0b10000000;
-
 	/*
 	 * Setup Timer2 to CTC with interrupt mode with no PWM.
 	 */
@@ -146,6 +136,8 @@ void setup() {
 	interrupts();
 
 	pinMode(13, OUTPUT);	// DEBUG
+
+	display_heart();
 }
 
 void loop() {
@@ -281,6 +273,23 @@ void put_pixel(uint8_t x, uint8_t y, uint8_t color) {
 		vram[y] &= ~(1 << x);
 	}
 }
+
+
+/*
+ * Show nice heart ower the whole display.
+ */
+void display_heart(void) {
+	// Paint something to vram :).
+	vram[0] = 0b00000000;
+	vram[1] = 0b00110110;
+	vram[2] = 0b01001001;
+	vram[3] = 0b01000001;
+	vram[4] = 0b00100010;
+	vram[5] = 0b00010100;
+	vram[6] = 0b00001000;
+	vram[7] = 0b00000000;
+} /* display_heart() */
+
 
 /* Keep this comment at the end of the file
  *Local variables:
